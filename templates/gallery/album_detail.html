@@ -1,0 +1,123 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}{{ album.title }}{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs">
+  <a href="{% url 'home' %}">Главная</a><span>→</span>
+  <a href="{% url 'gallery:home' %}">Фотогалерея</a><span>→</span>
+  <span>{{ album.title|truncatewords:6 }}</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="page-container">
+  <div class="album-detail-header">
+    <p class="period-label">{{ album.get_period_display }}</p>
+    <h1 class="album-detail-title">{{ album.title }}</h1>
+    {% if album.description %}<p class="album-detail-desc">{{ album.description }}</p>{% endif %}
+    <p class="result-count" style="margin-top:8px">{{ photos.count }} фотографий</p>
+  </div>
+
+  <!-- PHOTO GRID with lightbox -->
+  <div class="photo-masonry" id="photo-grid">
+    {% for photo in photos %}
+    <div class="photo-thumb-wrap" onclick="openLightbox({{ forloop.counter0 }})">
+      <div class="photo-thumb">
+        {% if photo.image %}
+          <img src="{{ photo.image.url }}" alt="{{ photo.caption }}" loading="lazy">
+        {% endif %}
+      </div>
+      {% if photo.caption or photo.date_text %}
+      <div class="photo-caption-bar">
+        {% if photo.caption %}<span>{{ photo.caption }}</span>{% endif %}
+        {% if photo.date_text %}<span class="photo-date">{{ photo.date_text }}</span>{% endif %}
+        {% if photo.fond_item %}<a href="{{ photo.fond_item.get_absolute_url }}" class="photo-fond-link" onclick="event.stopPropagation()">→ В фонд</a>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% empty %}
+    <div class="empty-state"><p>Фотографии пока не добавлены в этот альбом.</p></div>
+    {% endfor %}
+  </div>
+
+  <!-- OTHER ALBUMS IN PERIOD -->
+  {% if other_albums %}
+  <div class="related-section">
+    <div class="section-header"><h2>Другие альбомы этого периода</h2></div>
+    <div class="albums-grid">
+      {% for a in other_albums %}
+      <a href="{{ a.get_absolute_url }}" class="album-card">
+        <div class="album-cover">
+          {% if a.cover %}<img src="{{ a.cover.url }}" alt="{{ a.title }}" loading="lazy">{% else %}<span>Нет обложки</span>{% endif %}
+        </div>
+        <div class="album-info">
+          <h4>{{ a.title }}</h4>
+          <p>{{ a.photos.count }} фотографий</p>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox-overlay" id="lightbox" role="dialog" aria-modal="true" aria-label="Просмотр фотографии">
+  <button class="lightbox-close" onclick="closeLightbox()" aria-label="Закрыть">✕</button>
+  <button class="lightbox-prev" onclick="lightboxNav(-1)" aria-label="Предыдущее фото">&#8592;</button>
+  <button class="lightbox-next" onclick="lightboxNav(1)" aria-label="Следующее фото">&#8594;</button>
+  <div class="lightbox-content">
+    <img id="lightbox-img" src="" alt="">
+    <div class="lightbox-caption" id="lightbox-caption"></div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const photos = [
+  {% for photo in photos %}
+  { src: "{% if photo.image %}{{ photo.image.url }}{% endif %}", caption: "{{ photo.caption|escapejs }}", date: "{{ photo.date_text|escapejs }}" },
+  {% endfor %}
+];
+let currentIndex = 0;
+
+function openLightbox(idx) {
+  currentIndex = idx;
+  updateLightbox();
+  document.getElementById('lightbox').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function lightboxNav(dir) {
+  currentIndex = (currentIndex + dir + photos.length) % photos.length;
+  updateLightbox();
+}
+
+function updateLightbox() {
+  const p = photos[currentIndex];
+  document.getElementById('lightbox-img').src = p.src;
+  document.getElementById('lightbox-caption').textContent = [p.caption, p.date].filter(Boolean).join(' · ');
+}
+
+document.getElementById('lightbox').addEventListener('click', function(e) {
+  if (e.target === this) closeLightbox();
+});
+
+document.addEventListener('keydown', function(e) {
+  const lb = document.getElementById('lightbox');
+  if (!lb.classList.contains('open')) return;
+  if (e.key === 'Escape') closeLightbox();
+  if (e.key === 'ArrowLeft') lightboxNav(-1);
+  if (e.key === 'ArrowRight') lightboxNav(1);
+});
+</script>
+{% endblock %}

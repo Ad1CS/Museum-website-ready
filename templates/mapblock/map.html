@@ -1,0 +1,154 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Интерактивная карта{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs">
+  <a href="{% url 'home' %}">Главная</a><span>→</span>
+  <span>Интерактивная карта</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<div class="map-wrapper">
+
+  <!-- MAP AREA -->
+  <div class="map-area">
+    <div class="map-placeholder">
+      <div class="map-territory-label">Территория предприятия · Схема</div>
+      {% for building in buildings %}
+      <div class="map-building"
+           data-key="{{ building.slug }}"
+           style="left:{{ building.map_left|floatformat:-2 }}%;top:{{ building.map_top|floatformat:-2 }}%;width:{{ building.map_width|floatformat:-2 }}%;height:{{ building.map_height|floatformat:-2 }}%;"
+           onclick="showBuilding('{{ building.slug }}')"
+           tabindex="0" role="button" aria-label="{{ building.name }}">
+        <div class="building-label">{{ building.name }}</div>
+        <div class="map-building-dot"></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- RIGHT SIDEBAR -->
+  <div class="map-sidebar-wrap">
+    <!-- Layer 1: list -->
+    <div class="map-sidebar-list" id="map-sidebar-list">
+      <h3>Здания предприятия</h3>
+      {% for building in buildings %}
+      <div class="building-list-item" data-key="{{ building.slug }}"
+           onclick="showBuilding('{{ building.slug }}')">
+        <h4>{{ building.name }}</h4>
+        {% if building.built_years %}<p>{{ building.built_years }}</p>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <!-- Layer 2: detail -->
+    <div class="map-sidebar-detail" id="map-sidebar-detail">
+      <button class="map-detail-back" onclick="closeBuilding()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        Все здания
+      </button>
+      <div id="map-detail-content"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile bottom sheet -->
+<div class="map-mobile-sheet" id="map-mobile-sheet">
+  <div class="map-mobile-sheet-bar" onclick="closeMobileSheet()"></div>
+  <div id="map-mobile-sheet-content"></div>
+</div>
+
+<!-- Mobile list below map -->
+<div class="map-buildings-list-mobile" id="map-mobile-list">
+  <div class="map-mobile-list-label">Нажмите на здание для подробной информации</div>
+  {% for building in buildings %}
+  <div class="building-list-item" onclick="showBuilding('{{ building.slug }}')">
+    <h4>{{ building.name }}</h4>
+    {% if building.built_years %}<p>{{ building.built_years }}</p>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const buildingData = {
+  {% for b in buildings %}
+  "{{ b.slug }}": {
+    name: "{{ b.name|escapejs }}",
+    built: "{{ b.built_years|escapejs }}",
+    desc: "{{ b.description|escapejs }}",
+    url: "{% url 'mapblock:building' b.slug %}",
+    photoCount: {{ b.photos.count }}
+  },
+  {% endfor %}
+};
+
+function buildingDetailHTML(b) {
+  return `
+    <div class="map-detail-name">${b.name}</div>
+    <div class="map-detail-meta">${b.built ? 'Построено: ' + b.built : ''}</div>
+    ${b.photoCount > 0 ? `<div class="map-detail-photo">${b.photoCount} фотографий здания</div>` : '<div class="map-detail-photo">Фотографии не добавлены</div>'}
+    <div class="map-detail-desc">${b.desc}</div>
+    <a href="${b.url}" class="map-detail-link">→ Подробнее о здании</a>
+  `;
+}
+
+function showBuilding(key) {
+  const b = buildingData[key];
+  if (!b) return;
+  const isMobile = window.innerWidth <= 700;
+
+  document.querySelectorAll('.map-building, .building-list-item').forEach(el => {
+    el.classList.remove('selected');
+    el.classList.remove('active');
+  });
+  document.querySelectorAll('[data-key="' + key + '"]').forEach(el => {
+    el.classList.add('selected');
+    el.classList.add('active');
+  });
+
+  if (isMobile) {
+    const sheet = document.getElementById('map-mobile-sheet');
+    document.getElementById('map-mobile-sheet-content').innerHTML = buildingDetailHTML(b);
+    sheet.style.display = 'block';
+    requestAnimationFrame(() => requestAnimationFrame(() => sheet.classList.add('open')));
+  } else {
+    document.getElementById('map-detail-content').innerHTML = buildingDetailHTML(b);
+    document.getElementById('map-sidebar-list').classList.add('hidden');
+    document.getElementById('map-sidebar-detail').classList.add('open');
+  }
+}
+
+function closeBuilding() {
+  document.getElementById('map-sidebar-list').classList.remove('hidden');
+  document.getElementById('map-sidebar-detail').classList.remove('open');
+  document.querySelectorAll('.map-building, .building-list-item').forEach(el => {
+    el.classList.remove('selected');
+    el.classList.remove('active');
+  });
+}
+
+function closeMobileSheet() {
+  const sheet = document.getElementById('map-mobile-sheet');
+  sheet.classList.remove('open');
+  setTimeout(() => { sheet.style.display = 'none'; }, 300);
+  document.querySelectorAll('.map-building, .building-list-item').forEach(el => {
+    el.classList.remove('selected');
+    el.classList.remove('active');
+  });
+}
+
+document.querySelectorAll('.map-building, .building-list-item').forEach(el => {
+  el.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      const key = el.dataset.key;
+      if (key) showBuilding(key);
+    }
+  });
+});
+</script>
+{% endblock %}

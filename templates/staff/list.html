@@ -1,0 +1,62 @@
+{% extends "base/base.html" %}
+{% load static %}
+
+{% block title %}Сотрудники{% endblock %}
+
+{% block breadcrumbs %}
+<nav class="breadcrumbs">
+  <a href="{% url 'home' %}">Главная</a><span>→</span>
+  <span>Сотрудники</span>
+</nav>
+{% endblock %}
+
+{% block content %}
+<!-- ALPHABET INDEX -->
+<div class="staff-alpha" role="navigation" aria-label="Алфавитный указатель">
+  {% for letter in alphabet %}
+  <a href="?letter={{ letter }}"
+     class="alpha-btn {% if letter in available_letters %}has-entries{% endif %} {% if selected_letter == letter %}active{% endif %}"
+     {% if letter not in available_letters %}aria-disabled="true"{% endif %}>
+    {{ letter }}
+  </a>
+  {% endfor %}
+  {% if selected_letter %}
+  <a href="{% url 'staff:list' %}" class="alpha-btn alpha-reset">✕ Все</a>
+  {% endif %}
+</div>
+
+<div class="page-container">
+  <!-- SEARCH TOOLBAR -->
+  <div class="page-toolbar">
+    <form class="search-bar" method="get" role="search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" name="q" placeholder="Поиск по сотрудникам..." value="{{ q }}" aria-label="Поиск">
+      {% if selected_letter %}<input type="hidden" name="letter" value="{{ selected_letter }}">{% endif %}
+    </form>
+    <span class="result-count" id="staff-count">Сотрудников: {{ members|length }}</span>
+  </div>
+
+  <!-- STAFF GRID -->
+  <div class="staff-grid" id="staff-grid">
+    {% for member in members %}
+    <a href="{{ member.get_absolute_url }}" class="staff-card">
+      <div class="staff-photo">
+        {% if member.photo %}
+          <img src="{{ member.photo.url }}" alt="{{ member.full_name }}" loading="lazy">
+        {% else %}
+          <span>Нет фото</span>
+        {% endif %}
+      </div>
+      <div class="staff-info">
+        <h3>{{ member.last_name }}<br>{{ member.first_name }}{% if member.patronymic %} {{ member.patronymic }}{% endif %}</h3>
+        {% if member.years_worked %}<p>{{ member.years_worked }}</p>{% endif %}
+        {% if member.role %}<p class="staff-role">{{ member.role }}</p>{% endif %}
+        {% if member.personal_fund %}<span class="staff-link">→ Личный фонд {{ member.personal_fund.code }}</span>{% endif %}
+      </div>
+    </a>
+    {% empty %}
+    <div class="empty-state" style="grid-column:1/-1"><p>Сотрудники не найдены.</p></div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
